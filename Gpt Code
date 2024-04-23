@@ -1,0 +1,76 @@
+To accomplish the task outlined, we will follow the steps provided and write Python code to clean and preprocess the Amazon Fine Food Reviews dataset, train a GPT-2 model using Hugging Face's library, and evaluate the model's performance using ROUGE scores. Below is a sample code snippet to guide you through this process:
+
+```python
+# Import necessary libraries
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from transformers import GPT2Tokenizer, GPT2LMHeadModel
+from torch.utils.data import Dataset, DataLoader
+from transformers import AdamW
+from tqdm import tqdm
+from datasets import load_dataset
+from transformers import Trainer, TrainingArguments
+from rouge import Rouge
+
+# Load the Amazon Fine Food Reviews dataset
+data = pd.read_csv('Reviews.csv')
+
+# Clean and preprocess the 'Text' and 'Summary' columns
+# Add your data cleaning and preprocessing steps here
+
+# Initialize GPT-2 tokenizer and model
+tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+model = GPT2LMHeadModel.from_pretrained('gpt2')
+
+# Divide the dataset into training and testing (75:25)
+train_data, test_data = train_test_split(data, test_size=0.25, random_state=42)
+
+# Implement a custom dataset class
+class ReviewDataset(Dataset):
+    def __init__(self, data):
+        self.data = data
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        review_text = self.data.iloc[idx]['Text']
+        return tokenizer(review_text, return_tensors='pt')
+
+train_dataset = ReviewDataset(train_data)
+test_dataset = ReviewDataset(test_data)
+
+# Fine-tune the GPT-2 model
+training_args = TrainingArguments(
+    output_dir='./results',
+    num_train_epochs=3,
+    per_device_train_batch_size=4,
+    save_steps=10_000,
+    save_total_limit=2,
+)
+
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=train_dataset,
+)
+
+trainer.train()
+
+# Evaluate the model using ROUGE scores
+rouge = Rouge()
+predictions = []
+
+for idx in range(len(test_dataset)):
+    input_text = test_dataset[idx]['input_ids']
+    output_text = model.generate(input_text)
+    predictions.append(tokenizer.decode(output_text, skip_special_tokens=True))
+
+actual_summaries = test_data['Summary'].tolist()
+rouge_scores = rouge.get_scores(predictions, actual_summaries, avg=True)
+
+print("ROUGE Scores:")
+print(rouge_scores)
+```
+
+This code snippet provides a basic framework for cleaning and preprocessing the dataset, training a GPT-2 model, and evaluating its performance using ROUGE scores. You can further customize and optimize the code based on your specific requirements and dataset characteristics.
